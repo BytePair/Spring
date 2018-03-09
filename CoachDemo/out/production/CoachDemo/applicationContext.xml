@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans  xmlns="http://www.springframework.org/schema/beans"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:context="http://www.springframework.org/schema/context"
+        xsi:schemaLocation="http://www.springframework.org/schema/beans
+            http://www.springframework.org/schema/beans/spring-beans.xsd
+            http://www.springframework.org/schema/context
+            http://www.springframework.org/schema/context/spring-context.xsd">
+
+
+<!-- load the properties file -->
+        <context:property-placeholder location="classpath:sport.properties" />
+
+        <!-- Define Beans Here -->
+        <bean id="myCoach"
+              class="main.java.coachdemo.BaseballCoach">
+        </bean>
+
+        <!-- define a dependency -->
+        <bean id="myFortuneService"
+              class="main.java.coachdemo.HappyFortuneService">
+        </bean>
+
+        <!-- Constructor Injection -->
+            <!-- define bean that will require the dependency -->
+            <bean id="footballCoach"
+                  class="main.java.coachdemo.FootballCoach">
+                    <!-- set up constructor injection -->
+                    <constructor-arg ref="myFortuneService"/>
+            </bean>
+
+        <!-- Setter Injection -->
+            <!-- define bean that will require the dependency -->
+            <bean id="cricketCoach"
+                  class="main.java.coachdemo.CricketCoach">
+                    <!-- set up setter injection (will call setFortuneService (capitalizes first letter of name)) -->
+                    <property name="fortuneService" ref="myFortuneService" />
+
+                    <!-- set actual values -->
+                    <property name="team" value="${foo.team}" />
+                    <property name="emailAddress" value="${foo.email}" />
+            </bean>
+
+</beans>
