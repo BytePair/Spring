@@ -1,0 +1,655 @@
+/***********************************************************************
+ *
+ *                          Spring Notes
+ *
+ **********************************************************************/
+
+
+/***** Inversion of Control (Dependency Injection) *****/
+
+    Central IoC passes dependencies as needed to each class
+
+
+/***** ApplicationContext *****/
+
+    Read-Only wrapper of the BeanFactory
+    IoC Container
+
+
+/***** Java Configuration File *****/
+
+    // import from other configuration files in 2 steps (wiring the spring beans)
+
+        1.  @Import(DataConfig.class)
+        2.  @Autowired
+            private CustomerRepository customerRepository;
+
+
+/***** Environment Variables *****/
+
+    1.  set property source 
+        @PropertySource("classpath:/application.properties")
+
+    2.  grab the value from the source
+        @Value("${greeting.text}")
+        private String greetingText;
+
+    3.  create class that will use the new variable
+        public class Worker {
+            private String text;
+            Worker(String text) {
+                this.text = text;
+            }
+            public void execute() {
+                System.out.println("Hello " + this.text);
+            }
+        }
+
+    4.  create a bean that returns a new worker object
+        @Bean
+        public Worker worker() {
+            return new Worker(greetingText);
+        }    
+
+    5.  grab the worker bean and execute
+        public static void main (String[] args) {
+            ApplicationContext context = new AnnotationConfigApplicationContext(AppConfig.class);
+            OrderService orderService = context.getBean(OrderService.class);
+            System.out.println(orderService==null?"NULL":"A OK");
+            Worker worker = context.getBean(Worker.class);
+            worker.execute();
+        }
+
+    6.  (optional) can also add as environment variable to over-write the variable from resources
+
+
+/***** Profiles *****/
+
+    // Load different beans depending on the profile
+
+        @Bean
+        @Profile("dev")
+        public Worker workerForDev(){
+            return new Worker("Hello", greetingText);
+        }
+
+        @Bean
+        @Profile("prod")
+        public Worker workerForProd(){
+            return new Worker("Greetings", greetingText);
+        }
+
+    // Change the profiles by using environment variables
+
+        spring.profiles.active=prod
+
+
+/***** Spring Expression Language *****/
+
+    @Value("#{new Boolean(environment['spring.profiles.active'] == 'dev')}")
+    private boolean isDev;
+
+
+/***** Bean Scopes *****/
+
+    // Singleton Bean 
+        - default scope
+        - one instance per context definition
+        - be careful with static data
+
+    // Prototype Bean
+        - new instance every time it is referenced
+        - definition is stored in factory, instances are not
+        - useful for transient data or types that flex based on application state
+
+    // Web Only
+
+        // Session
+            - one instance of bean per user session
+            - definition storedin bean factory, instance is not
+
+        // Request
+            - one instance per request
+            - definition stored in bean factory, instance is not
+
+    // Defining the scope of a bean
+        @Bean
+        @Scope("prototype")
+        public Worker worker(){
+            return new Worker(greetingPreamble, greetingText);
+        }
+
+
+/***** Proxy *****/
+
+Proxies are aspects that add various behaviors to your class
+
+Spring uses JDK and CGLIB proxies
+
+    // Considerations
+        Behavior added to classes only impacted by calls through the proxy
+        Private methods
+
+
+/***** Annotation Based Configuration *****/
+
+    @Component and sterotypes
+
+    // Dependency Injection with Component Scanning
+
+        - DI is achieved through the @Autowired annotation
+        - @Qualifier is used when multiple implementations of an interface are needed
+        - Properties injected with @Value
+
+
+    // Autowiring with Component Scan 
+
+        1.  scan for components using @ComponentScan(basePackages = {"com.lynda.common"})
+        2.  define @Service and @Repository classes
+        3.  @Autowired on service constructors
+
+    // Autowiring: Field Level
+
+        - Private attributes can be Autowired (bad... don't do this)
+
+    // Autowiring: Setter Injection
+
+        - Used for optional dependencies
+        - Used for changing dependencies
+
+    // Autowiring: Constructor Injection
+
+        - This is the preferred method for required dependencies
+
+    // PostConstruct
+
+        - @PostConstruct operates the same as InitializingBeanInterface
+        - After the properties are set on all beans, the method is called:
+            @PostConstruct
+            public void init() {
+                // do some initialization work
+            }
+
+    // PreDestroy
+
+        - @PreDestroy operates the same as the DisposableBean interface
+        - Executed when ApplicationContext closes
+            @PreDestroy
+            public void destroy() {
+                // do some closing work
+            }
+
+
+/***** XML-Based Configuration *****/
+
+    - XML elements are used for beans
+    - XML attributes define details of the bean
+    - XML namespaces provide simplicity
+
+    // XML Namespaces
+
+        - Util Namespace
+            - Provides configuration for common utilities
+            - Properties
+            - Collections
+            - Constants
+
+        - JEE Namespace
+            - Provides access to common J2EE constructs
+            - JDNI
+            - EJB stateless beans
+
+        - JDBC
+            - Provides abstractions for JDBC operations
+            - Database connections
+            - Embedded database support
+
+        - JMS
+        - TX (transactions)
+        - AOP
+        - Context
+
+
+/***** Bean Lifecycle *****/
+
+    // Initialization Phase
+
+        - Begins with creation of ApplicationContext (wrapper for the BeanFactory)
+
+        - BeanFactory initialization phase 
+            1. Load Bean Definitions
+                - Sources (Java Configuration / XML configuration / Component scanning)
+                - Bean definitions must be static
+            2. ID is used to create the index for the factory
+            3. BeanFactory only contains references at this point
+            4. BeanFactory Post-processors
+                - Perform work on the entire BeanFactory
+                - Can modify or transform any bean in the factory prior to instantiation
+                - Most familiar example is the PropertySourcesPlaceholderConfigurer (injects property values into the bean before instantiation)
+                - Can create your own by creating a BeanFactoryPostProcessor Interface
+
+        - Bean initialization and instantiation 
+            Instantiate -> Setters -> Bean Post-Processor -> Initializer -> Bean Post-Processor
+
+            - Instantiate
+                - Beans are instantiated in the factory using the constructors
+                - Done in the correct order to ensure dependencies are created first
+                - Handle to class instance remains in the bean factory for the lifecycle of the application for singletons
+                - Eager vs Lazy
+                    - By default, all beans are instantiated eagerly
+                    - To truly be lazy, there can be nothing that depends on them
+                - Objects are constructed and have pointers in the BeanFactory but are no yet available for use
+
+            - Setters
+                - After all beans have been instantiated
+                - Setters are called
+                - Autowiring occurs (non constructor based (i.e. setter and field))
+                - After this step:
+                    - All beans fully initialized
+                    - All initial dependencies are injected
+                    - Beans still not ready for use (spring needs to add its own behaviors to our classes)
+            
+            - Post-Processing
+                - Final point of configuration manipulation
+                - Each bean may have additional behaviors added 
+                - BeanPostProcessor Interface
+                    - The BeanPostProcessor interface allows you to inject common behavior to a class of beans
+                    - Still operates on specific beans
+                    - Types: before and after
+
+    // Use Phase
+
+        - Most of the tiem is spent in this phase
+        - ApplicationContext serves proxies to the original class
+        - ApplicationContext maintains handle to each bean (singleton)
+
+    // Destruction Phase
+
+        - Begins when close is called on the ApplicationContext
+        - At that point any @PreDestroy method is called
+        - Beans are not destroyed (just available for garbage collection)
+        - Caveats 
+            - Context cannot be reused again
+            - Prototype beans are not impacted
+            - Only GC actually destroys bean instances
+
+
+/***** Aspect Oriented Programming *****/
+
+    Used for:
+        - Logging 
+        - Transaction Management
+        - Caching
+    
+    Cross Cutting Concerns:
+        - Evaluated business requirements and look for words like always or every
+        - Look for system requirements that apply to multiple business requirements
+
+    Spring Aspects
+        - Leverages AspectJ for aspecting
+        - Byte code modification (run time interweaving)
+        - Dynamic proxy based
+        - Parts:
+            - Join Point: line of code that aspect is targeting
+            - Pointcut: expression that identified the join point
+            - Advice: code executed at a join point
+            - Aspect: module that contains all the of pointcuts and advice that is injected
+    
+    // Defining AOP Pointcuts
+        - Syntax - designator("r p.c.m(arg))
+            - r - return type
+            - p - package
+            - c - class
+            - m - method
+            - arg - # of args
+
+        - Common Designators
+            - execution: expression for matching method execution
+            - within: expressions for matching within certain types
+            - target: expressions for matching a specific type
+            - @annotation: expressions for matching a specific annotation
+
+
+
+            
+/***********************************************************************
+ *
+ *                         Build with Gradle
+ *
+ **********************************************************************/
+
+//  Create the directory structure
+
+    In a project directory of your choosing, create the following subdirectory 
+    structure; for example, with mkdir -p src/main/java/hello on *nix systems
+
+//  Create sample classes
+
+    GradleTest/src/main/java/hello/HelloWorld.java
+
+    package hello;
+
+        public class HelloWorld {
+            public static void main(String[] args) {
+                Greeter greeter = new Greeter();
+                System.out.println(greeter.sayHello());
+            }
+        }
+
+    GradleTest/src/main/java/hello/Greeter.java
+
+        package hello;
+
+        public class Greeter {
+            public String sayHello() {
+                return "Hello world!";
+            }
+        }
+
+// Create a very basic build.gradle file in GradleTest
+
+    Give it just just one line: apply plugin: 'java'
+
+
+//  Add dependencies to the project
+
+    Add source for 3rd party libraries:
+
+        repositories {
+            mavenCentral()
+        }
+
+//  Then add the dependencies
+
+    sourceCompatibility = 1.8
+    targetCompatibility = 1.8
+
+    dependencies {
+        compile "joda-time:joda-time:2.2"
+        testCompile "junit:junit:4.12"
+    }
+
+    //  Other types of dependencies
+
+        providedCompile. Required dependencies for compiling the project code, 
+        but that will be provided at runtime by a container running the code 
+        (for example, the Java Servlet API).
+
+        testCompile. Dependencies used for compiling and running tests, but 
+        not required for building or running the project’s runtime code.
+
+
+//  Finally, specify the name for our JAR artifact
+
+    jar {
+        baseName = 'gs-gradle'
+        version =  '0.1.0'
+    }
+
+
+//  Building project with Gradle Wrapper
+
+    These scripts allow you to run a Gradle build without requiring that Gradle be installed on your system.
+
+    gradle wrapper --gradle-version 2.13
+
+    
+//  To view classes in the jar
+
+    jar tvf build/libs/gs-gradle-0.1.0.jar
+
+
+//  To make the code runnable, use gradle's application plugin
+
+    Add to the build.gradle file:
+
+        apply plugin: 'application'
+        mainClassName = 'hello.HelloWorld'
+
+
+//  And then run it
+
+    ./gradlew run
+
+
+
+
+/***********************************************************************
+ *
+ *                         Restful Web Service
+ *
+ **********************************************************************/
+
+
+//  Create the directory structure
+
+    mkdir -p src/main/java/hello on *nix systems:
+
+
+//  Create Gradle build file
+
+    buildscript {
+        repositories {
+            mavenCentral()
+        }
+        dependencies {
+            classpath("org.springframework.boot:spring-boot-gradle-plugin:2.0.0.RELEASE")
+        }
+    }
+
+    apply plugin: 'java'
+    apply plugin: 'eclipse'
+    apply plugin: 'idea'
+    apply plugin: 'org.springframework.boot'
+    apply plugin: 'io.spring.dependency-management'
+
+    bootJar {
+        baseName = 'gs-rest-service'
+        version =  '0.1.0'
+    }
+
+    repositories {
+        mavenCentral()
+    }
+
+    sourceCompatibility = 1.8
+    targetCompatibility = 1.8
+
+    dependencies {
+        compile("org.springframework.boot:spring-boot-starter-web")
+        testCompile('org.springframework.boot:spring-boot-starter-test')
+    }
+
+    //  The Spring Boot gradle plugin provides many convenient features:
+
+        It collects all the jars on the classpath and builds a single, runnable "über-jar", which makes it more convenient to execute and transport your service.
+
+        It searches for the public static void main() method to flag as a runnable class.
+
+        It provides a built-in dependency resolver that sets the version number to match Spring Boot dependencies. You can override any version you wish, but it will default to Boot’s chosen set of versions.    
+
+
+//  Create a representation class
+
+    // get request should return a 200 OK response with JSON in the body that represents a greeting
+
+        {
+            "id": 1,
+            "content": "Hello, World!"
+        }
+
+    //  to *model* the greting, you crease a resource representation class.
+        it will have fields, constructors, and accessors for the id and content data
+
+        src/main/java/hello/Greeting.java
+
+        package hello;
+
+        public class Greeting {
+
+            private final long id;
+            private final String content;
+
+            public Greeting(long id, String content) {
+                this.id = id;
+                this.content = Greecontent;
+            }
+
+            public long getId() {
+                return id;
+            }
+
+            public String getContent() {
+                return content;
+            }
+        }
+
+
+//  Create a Resource Controller
+
+    - HTTP requests are handled by a controller. These components are easily identified by the @RestController annotation
+
+    - Spring uses the Jackson JSON library to automatically marshal instances of type Greeting into JSON.
+    - Because Jackson 2 is on the classpath, Spring’s MappingJackson2HttpMessageConverter is automatically chosen to convert the Greeting instance to JSON
+
+    src/main/java/hello/GreetingController.java
+
+    package hello;
+
+    import java.util.concurrent.atomic.AtomicLong;
+    import org.springframework.web.bind.annotation.RequestMapping;
+    import org.springframework.web.bind.annotation.RequestParam;
+    import org.springframework.web.bind.annotation.RestController;
+
+
+    // shorthand for @Controller and @ResponseBody rolled together
+    @RestController
+    public class GreetingController {
+
+        private static final String TEMPLATE = "Hello, %s!";
+        private final AtomicLong counter = new AtomicLong();
+
+        /**
+        * The @RequestMapping annotation ensures that HTTP requests to /greeting are mapped to the greeting() method.
+        *
+        * The above example does not specify GET vs. PUT, POST, and so forth, because @RequestMapping maps all HTTP
+        * operations by default. Use @RequestMapping(method=GET) to narrow this mapping.
+        **/
+        @RequestMapping("/greeting")
+        public Greeting greeting(@RequestParam(value="name", defaultValue="World") String name) {
+            return new Greeting(counter.incrementAndGet(),
+                    String.format(TEMPLATE, name));
+        }
+
+    }
+
+
+//  Making the Application Executable
+
+    - Can package this service as a traditional WAR file for deployment to an external application server
+        or
+    
+    // Use Spring’s support for embedding the Tomcat servlet container as the HTTP runtime, instead of deploying to an external instance
+
+    src/main/java/hello/Application.java
+
+    package hello;
+
+    import org.springframework.boot.SpringApplication;
+    import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+    /**
+    * @SpringBootApplication is a convenience annotation that adds all of the following:
+    *
+    * @Configuration tags the class as a source of bean definitions for the application context.
+    *
+    * @EnableAutoConfiguration tells Spring Boot to start adding beans based on classpath settings, other beans, and various property settings.
+    *
+    * Normally you would add @EnableWebMvc for a Spring MVC app, but Spring Boot adds it automatically when it sees spring-webmvc on the classpath. This flags the application as a web application and activates key behaviors such as setting up a DispatcherServlet.
+    *
+    * @ComponentScan tells Spring to look for other components, configurations, and services in the hello package, allowing it to find the controllers.
+    */
+    @SpringBootApplication
+    public class Application {
+
+        public static void main(String[] args) {
+            SpringApplication.run(Application.class, args);
+        }
+
+    }
+
+
+//  Build an Executable JAR
+
+    - If you are using Gradle, you can run the application:
+        ./gradlew bootRun. 
+    - Or you can build the JAR file:
+        ./gradlew build. 
+    - Then you can run the JAR file:
+        java -jar build/libs/gs-rest-service-0.1.0.jar
+
+    // Test by going to http://localhost:8080/greeting and http://localhost:8080/greeting?name=User 
+
+
+
+
+/***********************************************************************
+ *
+ *                         Scheduled Tasks
+ *
+ **********************************************************************/
+
+//  Create a scheduled task
+
+    package hello;
+
+    import java.text.SimpleDateFormat;
+    import java.util.Date;
+
+    import org.slf4j.Logger;
+    import org.slf4j.LoggerFactory;
+    import org.springframework.scheduling.annotation.Scheduled;
+    import org.springframework.stereotype.Component;
+
+
+    @Component
+    public class ScheduledTasks {
+
+        private static final Logger log = LoggerFactory.getLogger(ScheduledTasks.class);
+
+        private final SimpleDateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");
+
+        /**
+        * The @Scheduled annotation defines when the method runs
+        *
+        * fixedRate: specifies the interval between method invocations measured from the start time of each invocation
+        * fixedDelay: specifies the interval between invocations measured from the completion of the task
+        *
+        * Can also use @Scheduled(cron=". . .") for more advanced task scheduling
+        */
+        @Scheduled(fixedRate = 5000)
+        public void reportCurrentTime() {
+            log.info("The time is now {}", dateFormat.format(new Date()));
+        }
+
+    }
+
+
+//  Enable scheduling via a main method
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
