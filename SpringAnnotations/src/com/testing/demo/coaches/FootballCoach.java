@@ -1,6 +1,5 @@
 package com.testing.demo.coaches;
 
-import com.testing.demo.coaches.Coach;
 import com.testing.demo.fortunes.FortuneService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;

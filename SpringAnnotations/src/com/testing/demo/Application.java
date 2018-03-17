@@ -25,12 +25,12 @@ public class Application {
         // call methods on ping pong coach bean
         System.out.println("\nPingPong:");
         System.out.println(ppCoach.getDailyWorkout());
-        System.out.printf(ppCoach.getFortune());
+        System.out.println(ppCoach.getFortune());
 
         // call methods on football coach bean
         System.out.println("\n\nFootball:");
         System.out.println(footballCoach.getDailyWorkout());
-        System.out.printf(footballCoach.getFortune());
+        System.out.println(footballCoach.getFortune());
 
         // close the context
         context.close();
