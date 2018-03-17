@@ -274,7 +274,7 @@ Spring uses JDK and CGLIB proxies
             - Only GC actually destroys bean instances
 
 
-/***** Aspect Oriented Programming *****/
+/***** (AOP) Aspect Oriented Programming *****/
 
     Used for:
         - Logging 
@@ -308,6 +308,14 @@ Spring uses JDK and CGLIB proxies
             - within: expressions for matching within certain types
             - target: expressions for matching a specific type
             - @annotation: expressions for matching a specific annotation
+
+
+// Definitions
+
+    ORM - Object to Relational Mapping - Integration with Hibernate and JPA
+    JDBC - DB helper classes
+    JMS - Java Messaging Service - sending async messages to a message broker
+    JMX - Java Management Extension - Java agents to remotely monitor your app
 
 
 
@@ -636,6 +644,564 @@ Spring uses JDK and CGLIB proxies
 
 
 //  Enable scheduling via a main method
+
+
+
+
+/***********************************************************************
+ *
+ *                         Udemy - Spring Notes
+ *
+ **********************************************************************/
+
+
+/***** Using Spring inversion of control to get objects *****/
+
+    1. use Spring container (object factory)
+        a. create and manage objects (Inversion of Control)
+        b. inject object's dependencies (Dependency Injection)
+    2. 3 ways to configure spring container
+        a. XML configuration file (legacy)
+        b. Java Annotations (modern)
+        iii. Java Source Code (modern)
+
+
+/***** Bean Scope (Lifecycle) *****/
+
+    // Types of Beans
+
+        1. Singleton (default scope)
+            a. spring container only creates one instance of the bean
+            b. it is cached in memory
+            c. all requests for it will have to share
+            d. can be set with scope="singleton"
+
+        2. Prototype 
+            a. creates a new bean instance for each container request
+
+        3. Request
+            a. scoped to an HTTP web request. Only used for web apps.
+
+        4. Session
+            a. scopted to an HTTP web session. Only used for web apps.
+
+        5. Global-Session
+            a. scoped to a global HTTP web session. Only used for web apps.
+
+    // Bean Lifecycle
+
+        1. Container Started
+        2. bean Instantiated 
+        3. Dependencies injected
+        4. Internal Spring Processing
+        5. Your Custom Init Method (hook into)
+            a. custom business logic methods
+            b. setting up handles to resources (db, sockets, file, etc.)
+            c. called by using method -> init-method="doMyStartupStuff"
+        6. ----Bean Now Ready For Use----
+        7. Your Custom Destroy Method
+            a. reverse of #5
+            b. called by using method -> destroy-method="doMyCleanupStuff"
+
+    // Development Process
+
+        1. Define your methods for init and destroy
+            a. returns nothing, so use void
+            b. cannot accept any arguments
+        2. Configure the method names in the Spring config file
+            a. <bean id="myCoach"
+                     class="main.java.coachdemo.FootballCoach"
+                     scope="singleton"
+                     init-method="doStartUpStuff"
+                     destroy-method="doCleanUpStuff">
+            b. destroy method not called for "prototype" scoped beans
+
+
+/***** Getting Resources *****/
+
+1. Get application context
+
+    @Autowired
+    private ApplicationContext context;
+
+2. Get resource from some source 
+
+    a. File system
+
+        Resource resource = appContext.getResource("file:c:\\testing.txt");
+
+    b. URL path
+
+        Resource resource =
+            appContext.getResource("url:http://www.yourdomain.com/testing.txt");
+
+    c. Class path
+
+        Resource resource =
+            appContext.getResource("classpath:com/mkyong/common/testing.txt");
+
+3. Use resource to get input stream
+
+    try (BufferedReader br = new BufferedReader(new InputStreamReader(resource.getInputStream()))) {
+        ArrayList<String> fortuneList = new ArrayList<>();
+        String line;
+        while ((line = br.readLine()) != null) {
+            fortuneList.add(line);
+        }
+        tempFortunes = fortuneList.toArray(new String[fortuneList.size()]);
+    } catch (Exception e) {
+        // bad stuff happened
+    }
+
+
+
+/***********************************************************************
+ *
+ *                       Udemy - Spring with XML
+ *
+ **********************************************************************/
+
+
+/***** 1.a. Create and Manage Objects (IoC - Inversion of Control) *****/
+
+1. Configure your Spring Beans
+    a. using XML
+        <beans ..>
+            <bean id="myCoach">
+                class="com.main.java.coachdemo.BaseballCoach">
+            </bean>
+        </beans>
+2. Create a Spring Container (aka the ApplicationContext)
+    a. using XML
+        ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext("applicationContext.xml");
+3. Retrieve Beans from Spring Container ( Beans are just objects created by the Spring Container! )
+    a. using XML
+        Coach theCoach = context.getBean("myCoach" /* refers to the id in the xml */, Coach.class /* the interface and class */);
+
+
+/***** 1.b. Inject Dependencies (DI) *****/
+
+//  Constructor Injection 
+
+    1. Define the dependency interface and its class
+    2. Create a constructor in your class for injections
+        a. define field:        
+            private FortuneService fortuneService;
+        b. define constructor for dependency injection:  
+            public BaseballCoach(FortuneService fortuneService) { this.fortuneService = fortuneService; }
+    3. Configure the DI in spring config file
+        a. create the fortune service bean 
+            <bean id="myFortuneService"
+                class="main.java.coachdemo.HappyFortuneService">
+            </bean>
+        b. use it in the constructor
+            <bean   id="footballCoach"
+                    class="main.java.coachdemo.FootballCoach">
+                        <constructor-arg ref="myFortuneService"/>
+            </bean>
+
+
+//  Setter Injection
+
+    1. Create setter methods in your class for injections
+        a. public void setFortuneService(FortuneService fortuneService) { this.fortuneService = fortuneService; }
+    2. Configure the dependency injection in Spring config file
+        a. the set method will use the name attribute in the property tag
+        b. <bean  id="cricketCoach"
+                  class="main.java.coachdemo.CricketCoach">
+                    <!-- set up setter injection (will call setFortuneService (capitalizes first letter of name)) -->
+                    <property name="fortuneService" ref="myFortuneService" />
+            </bean>
+
+
+//  Literal Injections (from config file)
+
+    1. Create setter methods in your class for injections
+
+        private String emailAddress;
+        private String team;
+
+        public void setEmailAddress(String emailAddress) {
+            this.emailAddress = emailAddress;
+        }
+
+        public void setTeam(String team) {
+            this.team = team;
+        }
+    2. Configure the injection in Spring config file
+
+
+// Read from Properties File
+
+    1. Create Properties file
+        a.  key value pairs in sport.properties file
+            foo.team = strikers
+    2. Load Properties file in Spring config file
+        a.  <context:property-placeholder location="classpath:sport.properties" />
+    3. Reference values from Properties file
+        a.  reference in the bean's xml with value="${foo.team}"
+
+
+
+
+/***********************************************************************
+ *
+ *                 Udemy - Spring with Java Annotations
+ *
+ **********************************************************************/
+
+
+//  What are @annotations?
+
+    1. special labels/markers added to Java classes
+    2. provide meta-data about the class
+    3. processed at compile time or run-time for special processing
+
+
+//  Development Process for using Spring Annotations
+
+    1. Enable componenet scanning in Spring config file
+        a. <context:component-scan base-package="main.java.coachdemo" />
+    2. Add the @Component Annotation to yoru Java classes
+        a. @Component("tennisCoach")
+        b. can also use default bean id
+            i. just makes first letter of the class name lowercase
+    3. Retrieve bean from Spring container
+        a. (same) Coach theCoach = context.getBean("sampleCoach", Coach.class);
+
+
+//  Dependency Injection with @Autowired
+
+    1. Define the dependency interface and class
+    2. Create a constructor in your class for injections 
+    3. Configure the dependency injection with @Autowired annotation (use @Qualifier if multiple interface implementations)
+        a. in constructor
+            @Autowired
+            public PingPongCoach(FortuneService fortuneService) {
+                this.fortuneService = fortuneService;
+            }
+        b. in setter (or any method in the class)
+            @Autowired
+            public void setFortuneService(FortuneService fortuneService) {
+                this.fortuneService = fortuneService;
+            }
+        c. field injection (using java reflection)
+            @Autowired
+            private FortuneService fortuneService;
+
+
+//  Qualifiers for Multiple Interface Implementations
+
+    // for setters
+        @Autowired
+        @Qualifier("sadFortuneService")  // used when there are multiple interface implementations
+        public void setFortuneService(FortuneService fortuneService) {
+            this.fortuneService = fortuneService;
+        }
+    
+    // for field injection
+        @Autowired
+        @Qualifier("nameOfService")
+
+    // for constructor
+        @Autowired
+        public PingPongCoach(@Qualifier("randomFortuneService") FortuneService fortuneService) {
+            this.fortuneService = fortuneService;
+        }
+
+
+//  Inject properties file using Java annotations
+
+    1. Create a properties file to hold your properties. It will be a name value pair.  
+
+        New text file:  src/sport.properties
+
+        foo.email=myeasycoach@luv2code.com
+        foo.team=Silly Java Coders
+
+    2. Load the properties file in the XML config file
+
+        <context:property-placeholder location="classpath:sport.properties"/>
+
+    3. Inject the properties values into your Swim Coach: SwimCoach.java
+
+        @Value("${foo.email}")
+        private String email;
+            
+        @Value("${foo.team}")
+        private String team;
+
+
+//  End of bean liftcycle process
+
+    @PostConstruct 
+
+
+//  Scope Annotations
+
+    @Component
+    @Scope("singleton") // for single object or @Scope("prototype") for different objects
+    public class TennisCoach implements Coach {}
+
+
+//  Lifecycle Methods Annotations
+
+    // start up (after the constructor)
+    @PostConstruct
+
+    // clean up (before bean is destroyed)
+    @PreDestroy
+
+    // notes
+        - can have any access modifier (public, protected, private)
+        - cannot return anything so make it void
+        - does not accept any arguments
+        - to fix on java 9
+            1. Download the javax.annotation-api-1.2.jar from:
+            http://central.maven.org/maven2/javax/annotation/javax.annotation-api/1.2/javax.annotation-api-1.2.jar
+            2. Copy the JAR file to the lib folder of your project
+
+
+
+
+/***********************************************************************
+ *
+ *                 Udemy - Spring with Java Code
+ *
+ **********************************************************************/
+
+
+//  Types of Spring Configurations
+    1. Full XML Config
+    2. XML with Component Scan
+    3. ! Java Configuration Class !
+
+
+//  Java Configuration Class
+
+    1. Create a Java class and annotate as @Configuration
+
+        @Configuration
+        public class SportConfig {}
+
+    2. Add component scanning support: @ComponentScan (optional)
+
+        @Configuration
+        @ComponentScan("com.whatever.demo") <---- 
+        public class SportConfig {}
+
+    3. Read Spring Java configuration class
+
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(SportConfig.class);
+
+    4. Retrieve bean from Spring container
+
+        Coach theCoach = context.getBean("tennisCoach", Coach.class);
+
+
+//  Defining Beans in Java Configuration Class
+
+    1. Define method to expose bean
+
+        @Configuration
+        public class SportConfig {
+
+            // define each bean individually in this config class
+            @Bean
+            public Coach swimCoach() {
+                SwimCoach mySwimCoach = new SwimCoach();
+                return mySwimCoach;
+            }
+        }
+
+    2. Inject bean dependencies
+
+        @Configuration
+        // @ComponentScan("com.javaconfig.demo") // not required if defining manually below
+        public class SportConfig {
+
+            // define bean for the happy fortune service
+            @Bean
+            public FortuneService happyFortuneService() {
+                return new HappyFortuneService();
+            }
+
+            // define bean for our swim coach AND inject dependency
+            @Bean
+            public Coach swimCoach() {
+                return new SwimCoach(happyFortuneService());   // note: same name as above bean
+            }
+
+        }
+
+    3. Read Spring Java configuration class
+
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext(SportConfig.class);
+
+    4. Retrieve bean from Spring container
+
+        Coach theCoach = context.getBean("swimCoach", Coach.class);
+
+
+//  Injecting Values from Properties File
+
+    1. Create properties file
+
+        coach.properties 
+
+        foo.email=somecoach@coaches.com
+        foo.teamname=strikers
+
+    2. Load properties file into Spring configuration
+
+        @Configuration
+        @PropertySource("classpath:coach.properties")
+        public class SportConfig {}
+
+    3. Reference values from properties file
+
+        public class SwimCoach implements Coach {
+
+            @Value("${foo.email}")
+            private String email;
+
+            @Value("${foo.teamname}")
+            private String teamName;
+        }
+    
+    4. Note when running version of spring < 4.2
+
+        // add to configuration class to add support to resolve ${...} properties
+        @Bean
+        public static PropertySourcesPlaceholderConfigurer
+                        propertySourcesPlaceHolderConfigurer() {
+            
+            return new PropertySourcesPlaceholderConfigurer();
+        }
+
+
+
+
+/***********************************************************************
+ *
+ *                         Udemy - Spring MVC
+ *
+ **********************************************************************/
+
+
+- Framework for building web applications in Java
+- Based on Model-View-Controller design pattern
+- Leverages features of the Core Spring Framework (IoC, DI)
+
+
+//  Benefits
+
+    - Spring way of building web apps UIs in Java
+    - Leverage a set of reusable UI components
+    - Help manage applicaiton state for web requests
+    - Process form data: validation, conversion, etc
+    - Flexible configuration for the view layer
+
+
+//  Model-View-Controller (MVC)
+
+    Web Browser ---->   Front Controller
+                            |
+                            v
+                        Controller 
+                            |
+                            v
+    Web Browser <----   View Template
+
+
+//  Front Controller
+
+    - Known as DispatcherServlet
+        - Part of the spring framework
+        - Already developed by spring dev team
+
+
+//  Controller
+
+    - Contains the business logic 
+        - Handle the request
+        - Store / Retrieve the data (DB, web service, ...)
+        - Place data in model
+    - Send to appropriate view template
+
+
+//   Model
+
+    - Contains the data 
+    - Store / Retrieve data via backend systems 
+        - DB, web service, etc
+        - (Can also use a spring bean)
+    - Place your data in the model
+        - Data can be any Java object / collection
+
+
+//  View Template
+
+    - Supports many view templates
+    - Most common is JSP (Java Server Pages) + JSTL (JSP Standard Tag Library)
+    - Create a page and display the model data
+
+
+//  Spring MVC Configuration Process
+
+    1. Configure Spring MVC Dispatcher Servlet
+
+        web.xml
+
+        <web-app
+
+            <servlet>
+                <servlet-name>dispatcher</servlet-name>
+                <servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+                <init-param>
+                    <param-name>contextConfigLocation</param-name>
+                    <param-value>/WEB-INF/spring-mvc-demo-servlet.xml</param-value>
+                </init-param>
+                <load-on-startup>1</load-on-startup>
+            </servlet>
+
+    2. Set up URL mappings to the dispatcher servlet
+
+            <servlet-mapping>
+                <servlet-name>dispatcher</servlet-name>
+                <url-pattern>/</url-pattern>
+            </servlet-mapping>
+
+        </web-app>
+
+    3. Add configurations to file: WEB-INF/spring-mvc-demo-servlet.xml
+        a. Add support for Spring component scanning
+        b. Add support for conversion, formatting, and validation
+
+            <mvc:annotation-driven/>
+
+        c. Configure Spring MVC View Resolver
+
+            <bean
+                class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+                <property 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
